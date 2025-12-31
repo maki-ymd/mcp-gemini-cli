@@ -6,7 +6,7 @@ import { z } from "zod";
 
 // Function to determine the gemini-cli command and its initial arguments
 export async function decideGeminiCliCommand(
-  allowNpx: boolean,
+  allowNpx: boolean
 ): Promise<{ command: string; initialArgs: string[] }> {
   return new Promise((resolve, reject) => {
     const isWindows = process.platform === "win32";
@@ -23,8 +23,8 @@ export async function decideGeminiCliCommand(
       } else {
         reject(
           new Error(
-            "gemini not found globally and --allow-npx option not specified.",
-          ),
+            "gemini not found globally and --allow-npx option not specified."
+          )
         );
       }
     });
@@ -37,7 +37,7 @@ export async function decideGeminiCliCommand(
 // Function to execute gemini-cli command
 export async function executeGeminiCli(
   geminiCliCommand: { command: string; initialArgs: string[] },
-  args: string[],
+  args: string[]
 ): Promise<string> {
   const { command, initialArgs } = geminiCliCommand;
   const commandArgs = [...initialArgs, ...args];
@@ -67,6 +67,38 @@ export async function executeGeminiCli(
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, commandArgs, spawnOptions);
+
+    let stdout = "";
+    let stderr = "";
+
+    // Close stdin immediately since we're not sending any input
+    if (child.stdin) {
+      child.stdin.end();
+    }
+
+    if (child.stdout) {
+      child.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+    }
+
+    if (child.stderr) {
+      child.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+    }
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout);
+      } else {
+        reject(new Error(`gemini exited with code ${code}: ${stderr}`));
+      }
+    });
+
+    child.on("error", (err) => {
+      reject(err);
+    });
   });
 }
 
@@ -90,7 +122,7 @@ export const GoogleSearchParametersSchema = z.object({
     .string()
     .optional()
     .describe(
-      'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.',
+      'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.'
     ),
 });
 
@@ -106,7 +138,7 @@ export const GeminiChatParametersSchema = z.object({
     .string()
     .optional()
     .describe(
-      'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.',
+      'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.'
     ),
 });
 
@@ -117,7 +149,7 @@ export const GeminiAnalyzeFileParametersSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Additional instructions for analyzing the file. If not provided, Gemini will provide a general analysis.",
+      "Additional instructions for analyzing the file. If not provided, Gemini will provide a general analysis."
     ),
   sandbox: z.boolean().optional().describe("Run gemini-cli in sandbox mode."),
   yolo: z
@@ -128,7 +160,7 @@ export const GeminiAnalyzeFileParametersSchema = z.object({
     .string()
     .optional()
     .describe(
-      'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.',
+      'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.'
     ),
 });
 
@@ -223,7 +255,7 @@ const SUPPORTED_EXTENSIONS = [
 
 export async function executeGeminiAnalyzeFile(
   args: unknown,
-  allowNpx = false,
+  allowNpx = false
 ) {
   const parsedArgs = GeminiAnalyzeFileParametersSchema.parse(args);
 
@@ -234,7 +266,7 @@ export async function executeGeminiAnalyzeFile(
       `Unsupported file type: ${fileExtension}. Supported types are:\n` +
         `Images: ${SUPPORTED_IMAGE_EXTENSIONS.join(", ")}\n` +
         `Text: ${SUPPORTED_TEXT_EXTENSIONS.join(", ")}\n` +
-        `Documents: ${SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}`,
+        `Documents: ${SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}`
     );
   }
 
@@ -270,10 +302,10 @@ async function main() {
     await decideGeminiCliCommand(allowNpx);
   } catch (error) {
     console.error(
-      `Error: ${error instanceof Error ? error.message : String(error)}`,
+      `Error: ${error instanceof Error ? error.message : String(error)}`
     );
     console.error(
-      "Please install gemini-cli globally or use --allow-npx option.",
+      "Please install gemini-cli globally or use --allow-npx option."
     );
     process.exit(1);
   }
@@ -299,7 +331,7 @@ async function main() {
           .boolean()
           .optional()
           .describe(
-            "Return raw search results with URLs and snippets (optional).",
+            "Return raw search results with URLs and snippets (optional)."
           ),
         sandbox: z
           .boolean()
@@ -313,7 +345,7 @@ async function main() {
           .string()
           .optional()
           .describe(
-            'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.',
+            'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.'
           ),
       },
     },
@@ -327,7 +359,7 @@ async function main() {
           },
         ],
       };
-    },
+    }
   );
 
   // Register chat tool
@@ -349,7 +381,7 @@ async function main() {
           .string()
           .optional()
           .describe(
-            'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.',
+            'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.'
           ),
       },
     },
@@ -363,7 +395,7 @@ async function main() {
           },
         ],
       };
-    },
+    }
   );
 
   // Register analyzeFile tool
@@ -376,13 +408,13 @@ async function main() {
         filePath: z
           .string()
           .describe(
-            "The absolute path to the file to analyze. Supported: .png, .jpg, .jpeg, .gif, .webp, .svg, .bmp, .pdf, .txt, .md, .text",
+            "The absolute path to the file to analyze. Supported: .png, .jpg, .jpeg, .gif, .webp, .svg, .bmp, .pdf, .txt, .md, .text"
           ),
         prompt: z
           .string()
           .optional()
           .describe(
-            "Additional instructions for analyzing the file. If not provided, Gemini will provide a general analysis.",
+            "Additional instructions for analyzing the file. If not provided, Gemini will provide a general analysis."
           ),
         sandbox: z
           .boolean()
@@ -396,7 +428,7 @@ async function main() {
           .string()
           .optional()
           .describe(
-            'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.',
+            'The Gemini model to use. Recommended: "gemini-2.5-pro" (default) or "gemini-2.5-flash". Both models are confirmed to work with Google login.'
           ),
       },
     },
@@ -410,7 +442,7 @@ async function main() {
           },
         ],
       };
-    },
+    }
   );
 
   // Connect the server to stdio transport
