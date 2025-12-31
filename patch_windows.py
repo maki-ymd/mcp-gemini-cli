@@ -1,54 +1,43 @@
 #!/usr/bin/env python3
-"""
-Patch index.ts to add Windows shell support
-"""
+"""Windows環境でのmcp-gemini-cliビルドエラー修正パッチ"""
+import json
+import subprocess
+import sys
+from pathlib import Path
 
-# Read the original file
-with open('index.ts', 'r', encoding='utf-8') as f:
-    content = f.read()
+def main():
+    print("修正中...")
+    
+    # package.json修正
+    pkg_path = Path("package.json")
+    with open(pkg_path, "r", encoding="utf-8") as f:
+        pkg = json.load(f)
+    
+    pkg["scripts"]["build"] = "rm -rf dist && bun build --target=node --outdir=dist --sourcemap index.ts"
+    
+    with open(pkg_path, "w", encoding="utf-8") as f:
+        json.dump(pkg, f, indent=2, ensure_ascii=False)
+    
+    print("package.json 修正完了")
+    
+    # ビルド実行
+    print("ビルド中...")
+    result = subprocess.run(["bun", "run", "build"], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"ビルド失敗:\n{result.stderr}")
+        sys.exit(1)
+    
+    print("ビルド成功")
+    
+    # shebang追加
+    dist_index = Path("dist/index.js")
+    content = dist_index.read_text(encoding="utf-8")
+    if not content.startswith("#!/usr/bin/env node"):
+        content = "#!/usr/bin/env node\n" + content
+        dist_index.write_text(content, encoding="utf-8")
+        print("shebang追加完了")
+    
+    print("パッチ適用完了！")
 
-# Define the original code block to replace
-original = '''  const { command, initialArgs } = geminiCliCommand;
-  const commandArgs = [...initialArgs, ...args];
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, {
-      stdio: ["pipe", "pipe", "pipe"],
-    });'''
-
-# Define the replacement code
-replacement = '''  const { command, initialArgs } = geminiCliCommand;
-  const commandArgs = [...initialArgs, ...args];
-
-  // Windows requires shell: true for proper PATH resolution
-  // and double-quoted arguments for -p option
-  const isWindows = process.platform === "win32";
-  const spawnOptions: any = {
-    stdio: ["pipe", "pipe", "pipe"],
-  };
-
-  if (isWindows) {
-    spawnOptions.shell = true;
-    // Quote -p argument values on Windows
-    for (let i = 0; i < commandArgs.length; i++) {
-      if (commandArgs[i] === "-p" && i + 1 < commandArgs.length) {
-        // Replace double quotes with single quotes inside the argument
-        const escapedArg = commandArgs[i + 1].replace(/"/g, "'");
-        // Wrap the entire argument in double quotes
-        commandArgs[i + 1] = `"${escapedArg}"`;
-      }
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, spawnOptions);'''
-
-# Replace the content
-if original in content:
-    content = content.replace(original, replacement)
-    # Write the patched file
-    with open('index.ts', 'w', encoding='utf-8') as f:
-        f.write(content)
-    print("✅ Successfully patched index.ts for Windows support")
-else:
-    print("❌ Original code block not found. File may have been already patched or modified.")
+if __name__ == "__main__":
+    main()
